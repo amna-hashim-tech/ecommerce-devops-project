@@ -21,16 +21,33 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # Backend API
   backend:
     build: ./backend
     container_name: backend-container
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/ecommerce
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "5000:5000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - ecommerce-network
