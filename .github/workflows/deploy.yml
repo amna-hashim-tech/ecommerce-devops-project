@@ -1,0 +1,55 @@
+name: Deploy to Azure AKS
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'kubernetes/**'
+      - '.github/workflows/**'
+
+env:
+  AZURE_CONTAINER_REGISTRY: ecommerceacr2026
+  ACR_IMAGE_NAME: ecommerce-backend
+  RESOURCE_GROUP: ecommerce-k8s-rg
+  CLUSTER_NAME: ecommerce-aks-cluster
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Build and push image to ACR
+      run: |
+        az acr build --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
+          --image ${{ env.ACR_IMAGE_NAME }}:${{ github.sha }} \
+          --image ${{ env.ACR_IMAGE_NAME }}:latest \
+          --file backend/Dockerfile \
+          backend/
+
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ env.CLUSTER_NAME }} \
+          --overwrite-existing
+
+    - name: Update deployment image
+      run: |
+        kubectl set image deployment/backend-deployment \
+          backend=${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ACR_IMAGE_NAME }}:${{ github.sha }} \
+          --record
+
+    - name: Verify deployment
+      run: |
+        kubectl rollout status deployment/backend-deployment
+        kubectl get pods
+        kubectl get services
