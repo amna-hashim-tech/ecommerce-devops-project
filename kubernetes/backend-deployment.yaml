@@ -8,8 +8,7 @@ spec:
   ports:
     - port: 5000
       targetPort: 5000
-      nodePort: 30000
-  type: NodePort
+  type: LoadBalancer
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -17,6 +16,8 @@ metadata:
   name: backend-deployment
 spec:
   replicas: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: backend
@@ -27,8 +28,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: ecommerce-backend:latest
-        imagePullPolicy: Never
+        image: ecommerceacr2026.azurecr.io/ecommerce-backend:v1
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
         env:
